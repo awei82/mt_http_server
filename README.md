@@ -1,4 +1,7 @@
 # Simple multithreaded HTTP Server
+
+Simple multithreaded HTTP Server. Design is based off of Python's [http.server](https://docs.python.org/3/library/http.server.html) module
+
 Only implements HTTP/1.1 GET and HEAD methods
 
 
