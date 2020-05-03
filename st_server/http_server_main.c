@@ -37,13 +37,13 @@ static struct option gLongOptions[] = {
 /* Main ========================================================= */
 int main(int argc, char **argv) {
   int option_char = 0;
-  //unsigned short port = 6200;
+  unsigned short portnum = 6200;
 
-  struct sockaddr_in serv_addr;
-  memset(&serv_addr, 0, sizeof(serv_addr));
-  serv_addr.sin_family = AF_INET;
-  serv_addr.sin_addr.s_addr = INADDR_ANY;
-  serv_addr.sin_port = htons(6200);
+  // struct sockaddr_in serv_addr;
+  // memset(&serv_addr, 0, sizeof(serv_addr));
+  // serv_addr.sin_family = AF_INET;
+  // serv_addr.sin_addr.s_addr = INADDR_ANY;
+  // serv_addr.sin_port = htons(portnum);
 
   char *directory = ".";
   http_server_t *server;
@@ -54,8 +54,14 @@ int main(int argc, char **argv) {
   while ((option_char = getopt_long(argc, argv, "p:b:d:hx", gLongOptions, NULL)) != -1) {
     switch (option_char) {
       case 'p': // listen-port
-        serv_addr.sin_port = htons(optarg);
-        //port = atoi(optarg);
+        portnum = atoi(optarg);
+        if ((portnum < 1025) || (portnum > 65535)) {
+          fprintf(stderr, "%s @ %d: invalid port number (%d)\n", __FILE__, __LINE__, portno);
+          exit(1);
+        } 
+        // else {
+        //   serv_addr.sin_port = htons(portnum);
+        // }
         break;
       case 'b': // bind address
         int rv = inet_pton(serv_addr.sin_family, optarg, *serv_addr.sin_addr.s_addr) != 1;
@@ -63,7 +69,7 @@ int main(int argc, char **argv) {
           fprintf(stdout, "Error binding to address. Defaulting to 0.0.0.0");
         break;
       case 'd':
-        // TODO: do directory binding stuff
+        directory = optarg;   // TODO - review this
         break;
       case 'h': // help
         fprintf(stdout, "%s", USAGE);
@@ -74,13 +80,12 @@ int main(int argc, char **argv) {
         exit(1);                                       
     }
   }
-  
 
   /*Initializing server*/
   gfs = gfserver_create();
 
   /*Setting options*/
-  gfserver_set_port(gfs, port);
+  gfserver_set_port(gfs, portnum);
   gfserver_set_maxpending(gfs, 6);
   gfserver_set_handler(gfs, getfile_handler);
 

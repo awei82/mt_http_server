@@ -14,24 +14,15 @@
 #include "http_server.h"
 #include "http_status.h"
 
-typedef struct http_server_t {
-    //unsigned short port;
-    struct sockaddr_in sock_addr;
-    int maxpending;
-    ssize_t (*handler)(char *, int);
-    //void* handlerarg;
-    //gfstatus_t status;
-} http_server_t;
 
-// typedef struct gfcontext_t {
-//     int sockfd;
-// } gfcontext_t;
+
+
 
 http_server_t* gfserver_create(struct sockaddr_in *sock_addr){
     http_server_t *server = (http_server_t *)malloc(sizeof(http_server_t));
     server->sock_addr = *sock_addr;
     server->maxpending = 1;
-    server->handler = NULL;
+    // gfs->handler = NULL;
     // gfs->handlerarg = NULL;
     // gfs->status = GF_INVALID;
     return server;
@@ -39,13 +30,24 @@ http_server_t* gfserver_create(struct sockaddr_in *sock_addr){
 
 
 
-// void gfs_abort(gfcontext_t *ctx){
-//     //printf("# gfs_abort\n");
-//     close(ctx->sockfd);
-// }
 
+void gfserver_set_handlerarg(gfserver_t *gfs, void* arg){
+    gfs->handlerarg = arg;
+}
 
-void http_server_serve(http_server_t *server){
+void gfserver_set_handler(gfserver_t *gfs, ssize_t (*handler)(gfcontext_t *, char *, void*)){
+    gfs->handler = handler;
+}
+
+void gfserver_set_maxpending(gfserver_t *gfs, int max_npending){
+    gfs->maxpending = max_npending;
+}
+
+void gfserver_set_port(gfserver_t *gfs, unsigned short port){
+    gfs->port = port;
+}
+
+void gfserver_serve(gfserver_t *gfs){
     char buf[BUFSIZE];
     memset(buf, 0, BUFSIZE);
 
@@ -64,37 +66,34 @@ void http_server_serve(http_server_t *server){
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = INADDR_ANY;
     serv_addr.sin_port = htons(gfs->port);
-    
-    if (bind(listenerfd, (struct sockaddr *) &server->sock_addr, sizeof(server->sock_addr)) < 0)
+    if (bind(listenerfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
         perror("ERROR on binding");
-    printf("# Listener socket %d bound to TCP port %d.\n", listenerfd, ntohs(server->sock_addr.sin_port));
+    //printf("# Listener socket %d bound to TCP port %d.\n", listenerfd, gfs->port);
 
-    printf("# Server is active. Listening for connections...\n");
-    if (listen(listenerfd, server->maxpending) == -1) {
+    //printf("# Server is active. Listening for connections...\n");
+    if (listen(listenerfd, gfs->maxpending) == -1) {
         perror("listen");
         exit(3);
     }
 
-    struct sockaddr_in cli_addr;
-    clilen = sizeof cli_addr; 
+    clilen = sizeof cli_addr;
+    //char *clientIP;
 
     while(1) {
-        // ACCEPT
         newsockfd = accept(listenerfd, (struct sockaddr *) &cli_addr, &clilen);
         if (newsockfd < 0) {
             perror("ERROR on accept");
             continue;
         }
-        char *clientIP;
-        clientIP = inet_ntoa(cli_addr.sin_addr);
-        printf("# Accepted a connection from %s on socket %d\n", clientIP, newsockfd);
+        //clientIP = inet_ntoa(cli_addr.sin_addr);
+        //printf("# Accepted a connection from %s on socket %d\n", clientIP, newsockfd);
 
-        // recv
+        //// recv
         memset(buf, 0, BUFSIZE);
         int nbytes;
         nbytes = recv(newsockfd, buf, BUFSIZE, 0);
         if (nbytes == 0) {
-            printf("# socket %d hung up\n", newsockfd);
+            //printf("# socket %d hung up\n", newsockfd);
             close(newsockfd);
             continue;
         } else if (nbytes < 0) {
@@ -103,19 +102,9 @@ void http_server_serve(http_server_t *server){
             continue;
         }
 
-        gfs->handler(buf, newsockfd);
-        //close(newsockfd);
-        // END
-
-
-
-
-
-
-
-        // parse request
+        //// parse request
         char* ptr = buf;
-        if (strncmp(ptr, "GET", 7) != 0) {
+        if (strncmp(ptr, "GETFILE", 7) != 0) {
             perror("# Unknown <scheme> request.\n");
             gfs->status = GF_INVALID;
             nbytes = send(newsockfd, "GETFILE INVALID\r\n\r\n", 20, 0);
@@ -137,8 +126,9 @@ void http_server_serve(http_server_t *server){
             pathlen++;
             ptr2++;
         }
-        char path[PATHLIM] = {0};
-        strncpy(path, ptr, PATHLIM);
+        char path[PATHLIM];
+        memset(path, '\0', PATHLIM);
+        strncpy(path, ptr, pathlen);
         //printf("# path: %s\n", path);
         
         if (path[0] != 47) {    // check for '/' in beginning of path
@@ -155,17 +145,5 @@ void http_server_serve(http_server_t *server){
         gfs->handler(ctx, path, gfs->handlerarg);
         free(ctx);
         close(newsockfd);
-
-
-        
-
-
     }
 }
-
-void _parse_request(char* request_str) {
-    
-
-
-}
-

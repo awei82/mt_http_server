@@ -75,11 +75,11 @@ Base class for various socket-based server classes.
     - server_address
     - RequestHandlerClass
     - socket
-
+bind
+activate / listen
 serve_forever
 - handle_request_noblock
-  - get_request
-  - verify_request - unneeded?
+  - get_request (accept)
   - process_request - used for multithreading?
     - finish_request
       - instantiate handler
