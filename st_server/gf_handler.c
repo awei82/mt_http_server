@@ -12,10 +12,10 @@
 // typedef struct http_handler_t {
 //     char directory[PATHLIM];
 //     ssize_t (*handle)(http_handler_t *, char *, int);
-//     ssize_t (*do_HEAD)(char* uri, int client_fd);
-//     ssize_t (*do_GET)(char* uri, int client_fd);
+//     ssize_t (*do_HEAD)(char* url, int client_fd);
+//     ssize_t (*do_GET)(char* url, int client_fd);
 //     int (*is_file)(const char *path);
-//     FILE* (*_get_file_obj)(char* uri);
+//     FILE* (*_get_file_obj)(char* url);
 //     int (*_send_head)(FILE*, int);
 //     int (*_send_file)(FILE*, int);
 // } http_handler_t;
@@ -23,7 +23,6 @@
 http_handler_t* gf_handler_create() {
     http_handler_t* handler = (http_handler_t *)malloc(sizeof(http_handler_t));
     handler->handle = gf_handler_handle;
-
     return handler;
 }
 
@@ -31,33 +30,35 @@ void gf_handler_set_dir(http_handler_t* handler, char* directory) {
     strncpy(handler->directory, directory, PATHLIM);
 }
 
-ssize_t gf_handler_do_HEAD(char* uri, int client_fd) {
-    printf("do_HEAD\n");
-    FILE* f = _get_file_ptr(uri);
+ssize_t gf_handler_do_HEAD(char* url, int client_fd) {
+    //printf("do_HEAD\n");
+    ssize_t bytes_sent = 0;
+    FILE* f = _get_file_ptr(url);
     if (f == NULL) {
         char *err_str = "HTTP/1.1 404 Not Found\r\n\r\n";
-        send(client_fd, err_str, strlen(err_str), 0);
+        bytes_sent = send(client_fd, err_str, strlen(err_str), 0);
     } else {
-        _send_head(f, client_fd);
+        bytes_sent = _send_head(f, client_fd);
         fclose(f);
     }
-    return 0;
+    return bytes_sent;
 }
 
-ssize_t gf_handler_do_GET(char* uri, int client_fd) {
-    printf("do_GET\n");
-    FILE* f = _get_file_ptr(uri);
+ssize_t gf_handler_do_GET(char* url, int client_fd) {
+    //printf("do_GET\n");
+    ssize_t bytes_sent = 0;
+    FILE* f = _get_file_ptr(url);
     if (f == NULL) {
         char err_str[50] = "HTTP/1.1 404 Not Found\r\n\r\n";
-        send(client_fd, err_str, strlen(err_str), 0);
+        bytes_sent = send(client_fd, err_str, strlen(err_str), 0);
     } else {
         int r = _send_head(f, client_fd);
         if (r >= 0) {
-            _send_file(f, client_fd);
+            bytes_sent = _send_file(f, client_fd);
         }
         fclose(f);
     }
-    return 0;
+    return bytes_sent;
 }
 
 int is_file(const char *path) {
@@ -66,20 +67,17 @@ int is_file(const char *path) {
     return (stat(path, &path_stat) == 0) && S_ISREG(path_stat.st_mode);
 }
 
-FILE* _get_file_ptr(char* uri) {
-    if ( is_file(uri) ) {
-        // file exists
-        printf("file exists\n");
-        return fopen(uri, "r");
+FILE* _get_file_ptr(char* url) {
+    if ( is_file(url) ) {
+        return fopen(url, "r");
     }
-    printf("file doesnt exist\n");
-
-    // file doesn't exist
+    printf("file %s doesn't exist\n", url);
     return NULL;
 }
 
 int _send_head(FILE* f, int client_fd) {
-    printf("_send_head\n");
+    //printf("_send_head\n");
+    ssize_t bytes_sent = 0;
     struct stat buf;
     fstat(fileno(f), &buf);
     off_t filelen = buf.st_size;
@@ -87,15 +85,13 @@ int _send_head(FILE* f, int client_fd) {
     if (filelen < 0) {
         perror("filesize check error");
         char *err_str = "HTTP/1.1 500 Internal Server Error\r\n\r\n";
-        send(client_fd, err_str, strlen(err_str), 0);
-        return -1;
+        bytes_sent = send(client_fd, err_str, strlen(err_str), 0);
     } else {
         char buf[100];
         snprintf(buf, 100, "HTTP/1.1 200 OK\r\nContent-Length: %zu\r\n\r\n", filelen);
-        send(client_fd, buf, strlen(buf), 0);
-        return 0;
+        bytes_sent = send(client_fd, buf, strlen(buf), 0);
     }
-    return 0;
+    return bytes_sent;
 }
 
 int _send_file(FILE* f, int client_fd) {
@@ -124,27 +120,36 @@ ssize_t gf_handler_handle(http_handler_t* handler, char* buf, int client_fd) {
     char* token = strtok(buf, " "); 
     char* method = token;
 
-    // Parse URI
+    // Parse URL
     token = strtok(NULL, " "); 
-    char* uri = token;
+    char* url = token;
+    // strip path traversal attempts
+    if (strstr(url, "../")) {
+        char err_str[50] = "HTTP/1.1 404 Not Found\r\n\r\n";
+        bytes_sent = send(client_fd, err_str, strlen(err_str), 0);
+        printf("**directory traversal attempt** - ");
+        printf("%lu bytes sent. closing connection %d\n", bytes_sent, client_fd);
+        close(client_fd);
+        return bytes_sent;
+    }
 
-    char full_uri[PATHLIM] = {0};
-    strncpy(full_uri, handler->directory, PATHLIM-1);
-    strncat(full_uri, uri, PATHLIM-strlen(full_uri)-1);
+    char full_url[PATHLIM] = {0};
+    strncpy(full_url, handler->directory, PATHLIM-1);
+    strncat(full_url, url, PATHLIM-strlen(full_url)-1);
 
     // Handle request
     if (strncmp(method, "GET", 3) == 0) {
-        printf("processing GET request\n");
-        bytes_sent = gf_handler_do_GET(full_uri, client_fd);
+        bytes_sent = gf_handler_do_GET(full_url, client_fd);
     } else if (strncmp(method, "HEAD", 4) == 0) {
-        bytes_sent = gf_handler_do_HEAD(full_uri, client_fd);
+        bytes_sent = gf_handler_do_HEAD(full_url, client_fd);
     } else {
         perror("# Unknown HTTP method.\n");
         char *err_str = "HTTP/1.1 400 Bad Request\r\n\r\n";
-        bytes_sent += send(client_fd, err_str, strlen(err_str), 0);
+        bytes_sent = send(client_fd, err_str, strlen(err_str), 0);
     }
 
     // Finish - close fd
+    printf("%lu bytes sent. closing connection %d\n", bytes_sent, client_fd);
     close(client_fd);
     return bytes_sent;
 }

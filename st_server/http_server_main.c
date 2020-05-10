@@ -111,10 +111,6 @@ int main(int argc, char **argv) {
     http_server_set_maxpending(getfile_server, 6);
     http_server_set_handler(getfile_server, gf_handler);
 
-    // /* this implementation does not pass any extra state, so it uses NULL. */
-    // /* this value could be non-NULL.  You might want to test that in your own code. */
-    // http_server_set_handlerarg(getfile_server, directory);
-
     /*Loops forever*/
     http_server_serve(getfile_server);
 }
