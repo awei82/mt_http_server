@@ -10,8 +10,10 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <dirent.h>
 
 #include "http_server.h"
+#include "gf_handler.h"
 
 
 #define USAGE                                                                 \
@@ -25,69 +27,90 @@
 
 /* OPTIONS DESCRIPTOR ====================================================== */
 static struct option gLongOptions[] = {
-  {"port",          required_argument,      NULL,           'p'},
-  {"bind_address",  required_argument,      NULL,           'b'},
-  {"directory",     required_argument,      NULL,           'd'},
-  {"help",          no_argument,            NULL,           'h'},
-  {NULL,            0,                      NULL,             0}
+{"port",          required_argument,      NULL,           'p'},
+{"bind_address",  required_argument,      NULL,           'b'},
+{"directory",     required_argument,      NULL,           'd'},
+{"help",          no_argument,            NULL,           'h'},
+{NULL,            0,                      NULL,             0}
 };
 
-
+#define PATHLIM 1024
 
 /* Main ========================================================= */
 int main(int argc, char **argv) {
-  int option_char = 0;
-  //unsigned short port = 6200;
+    int option_char = 0;
+    unsigned short portnum = 6200;
+    char ip_addr[PATHLIM];
+    strncpy(ip_addr, "0.0.0.0", PATHLIM);
 
-  struct sockaddr_in serv_addr;
-  memset(&serv_addr, 0, sizeof(serv_addr));
-  serv_addr.sin_family = AF_INET;
-  serv_addr.sin_addr.s_addr = INADDR_ANY;
-  serv_addr.sin_port = htons(6200);
+    char directory[PATHLIM];
+    strncpy(directory, ".", PATHLIM);
 
-  char *directory = ".";
-  http_server_t *server;
+    setbuf(stdout, NULL); // disable caching
 
-  setbuf(stdout, NULL); // disable caching
+    // Parse and set command line arguments
+    while ((option_char = getopt_long(argc, argv, "p:b:d:hx", gLongOptions, NULL)) != -1) {
+        switch (option_char) {
+            case 'p': // listen-port
+                portnum = atoi(optarg);
+                if ((portnum < 1025) || (portnum > 65535)) {
+                fprintf(stderr, "%s @ %d: invalid port number (%d)\n", __FILE__, __LINE__, portnum);
+                exit(1);
+                } 
+                break;
+            case 'b': // bind address
+                if (strlen(optarg) >= PATHLIM/4) {
+                    fprintf(stdout, "invalid bind address");
+                    exit(1);
+                }
+                strncpy(ip_addr, optarg, PATHLIM);
 
-  // Parse and set command line arguments
-  while ((option_char = getopt_long(argc, argv, "p:b:d:hx", gLongOptions, NULL)) != -1) {
-    switch (option_char) {
-      case 'p': // listen-port
-        serv_addr.sin_port = htons(optarg);
-        //port = atoi(optarg);
-        break;
-      case 'b': // bind address
-        int rv = inet_pton(serv_addr.sin_family, optarg, *serv_addr.sin_addr.s_addr) != 1;
-        if (rv != 1) 
-          fprintf(stdout, "Error binding to address. Defaulting to 0.0.0.0");
-        break;
-      case 'd':
-        // TODO: do directory binding stuff
-        break;
-      case 'h': // help
-        fprintf(stdout, "%s", USAGE);
-        exit(0);
-        break;       
-      default:
-        fprintf(stderr, "%s", USAGE);
-        exit(1);                                       
+                break;
+            case 'd':
+                // limit directory path to 256 chars
+                if (strlen(optarg) >= PATHLIM/4) {
+                    fprintf(stdout, "directory path over %d limit", PATHLIM/4);
+                    exit(1);
+                }
+                strncpy(directory, optarg, PATHLIM);
+
+                // check directory exists
+                DIR* dir = opendir(directory);
+                if (dir) {                      /* Directory exists. */
+                    closedir(dir);
+                } else if (ENOENT == errno) {   /* Directory does not exist. */
+                    fprintf(stdout, "directory %s does not exist\n", directory);
+                    exit(0);
+                } else {                        /* opendir() failed for some other reason. */
+                    fprintf(stdout, "opendir() error\n");
+                    exit(1);
+                }
+
+                break;
+            case 'h': // help
+                fprintf(stdout, "%s", USAGE);
+                exit(0);
+                break;       
+            default:
+                fprintf(stderr, "%s", USAGE);
+                exit(1);                                       
+        }
     }
-  }
-  
 
-  /*Initializing server*/
-  gfs = gfserver_create();
+    // set up GET FILE handler
+    http_handler_t *gf_handler = gf_handler_create();
+    gf_handler_set_dir(gf_handler, directory);
 
-  /*Setting options*/
-  gfserver_set_port(gfs, port);
-  gfserver_set_maxpending(gfs, 6);
-  gfserver_set_handler(gfs, getfile_handler);
 
-  /* this implementation does not pass any extra state, so it uses NULL. */
-  /* this value could be non-NULL.  You might want to test that in your own code. */
-  gfserver_set_handlerarg(gfs, NULL);
+    /*Initialize server*/
+    http_server_t *getfile_server = http_server_create();
 
-  /*Loops forever*/
-  gfserver_serve(gfs);
+    /*Setting options*/
+    http_server_set_port(getfile_server, portnum);
+    http_server_set_address(getfile_server, ip_addr);
+    http_server_set_maxpending(getfile_server, 6);
+    http_server_set_handler(getfile_server, gf_handler);
+
+    /*Loops forever*/
+    http_server_serve(getfile_server);
 }
