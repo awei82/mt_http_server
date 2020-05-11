@@ -10,9 +10,9 @@ DEPS = gf_handler.h http_server.h
 	$(CXX) -c -o $@ $< $(CXXFLAGS)
 
 main: $(OBJS) 
-	$(CXX) -c -o gf_server_main.o gf_server_main.c $(CXXFLAGS)
-	$(CXX) -o gf_server_main gf_server_main.o $(OBJS) $(CXXFLAGS)
+	$(CXX) -c -o getfile_server.o getfile_server.c $(CXXFLAGS)
+	$(CXX) -o getfile_server getfile_server.o $(OBJS) $(CXXFLAGS)
 
 clean:
-	rm gf_server_main gf_server_main.o $(OBJS) 
+	rm getfile_server getfile_server.o $(OBJS) 
 

@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <dirent.h>
 
 #include "gf_handler.h"
 
@@ -36,16 +37,33 @@ ssize_t gf_handler_do_HEAD(char* url, int client_fd) {
 ssize_t gf_handler_do_GET(char* url, int client_fd) {
     //printf("do_GET\n");
     ssize_t bytes_sent = 0;
-    FILE* f = _get_file_ptr(url);
-    if (f == NULL) {
-        char err_str[50] = "HTTP/1.1 404 Not Found\r\n\r\n";
-        bytes_sent = send(client_fd, err_str, strlen(err_str), 0);
-    } else {
-        int r = _send_head(f, client_fd);
-        if (r >= 0) {
-            bytes_sent = _send_file(f, client_fd);
+
+    // check if path is a directory
+    DIR* dir = opendir(url);
+    struct dirent *dir_ent;
+    if (dir) {     
+        char dir_buf[BUFSIZE] = {0};
+        while ((dir_ent = readdir(dir)) != NULL) {
+            strncat(dir_buf,  dir_ent->d_name, strlen(dir_ent->d_name));
+            if (strlen(dir_buf) + strlen(dir_ent->d_name) < BUFSIZE)
+                strncat(dir_buf, "\n", strlen("\n"));
         }
-        fclose(f);
+        char header_buf[100];
+        snprintf(header_buf, 100, "HTTP/1.1 200 OK\r\nContent-Length: %zu\r\n\r\n", strlen(dir_buf));
+        bytes_sent = send(client_fd, header_buf, strlen(header_buf), 0);
+        bytes_sent += send(client_fd, dir_buf, strlen(dir_buf), 0);
+    } else {
+        FILE* f = _get_file_ptr(url);
+        if (f == NULL) {
+            char err_str[50] = "HTTP/1.1 404 Not Found\r\n\r\n";
+            bytes_sent = send(client_fd, err_str, strlen(err_str), 0);
+        } else {
+            int r = _send_head(f, client_fd);
+            if (r >= 0) {
+                bytes_sent = _send_file(f, client_fd);
+            }
+            fclose(f);
+        }
     }
     return bytes_sent;
 }
@@ -76,9 +94,9 @@ int _send_head(FILE* f, int client_fd) {
         char *err_str = "HTTP/1.1 500 Internal Server Error\r\n\r\n";
         bytes_sent = send(client_fd, err_str, strlen(err_str), 0);
     } else {
-        char buf[100];
-        snprintf(buf, 100, "HTTP/1.1 200 OK\r\nContent-Length: %zu\r\n\r\n", filelen);
-        bytes_sent = send(client_fd, buf, strlen(buf), 0);
+        char header_buf[100];
+        snprintf(header_buf, 100, "HTTP/1.1 200 OK\r\nContent-Length: %zu\r\n\r\n", filelen);
+        bytes_sent = send(client_fd, header_buf, strlen(header_buf), 0);
     }
     return bytes_sent;
 }

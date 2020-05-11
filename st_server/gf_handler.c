@@ -116,22 +116,31 @@ int _send_file(FILE* f, int client_fd) {
 ssize_t gf_handler_handle(http_handler_t* handler, char* buf, int client_fd) {  
     ssize_t bytes_sent = 0;
 
+    printf("%s\n", buf);
+
     // Parse request method
     char* token = strtok(buf, " "); 
     char* method = token;
 
+    if (strncmp(method, "GET", 3) != 0 && strncmp(method, "HEAD", 4) != 0) {
+        // invalid request
+        char *err_str = "HTTP/1.1 400 Bad Request\r\n\r\n";
+        bytes_sent = send(client_fd, err_str, strlen(err_str), 0);
+    }
+
     // Parse URL
     token = strtok(NULL, " "); 
     char* url = token;
-    // strip path traversal attempts
-    if (strstr(url, "../")) {
-        char err_str[50] = "HTTP/1.1 404 Not Found\r\n\r\n";
-        bytes_sent = send(client_fd, err_str, strlen(err_str), 0);
-        printf("**directory traversal attempt** - ");
-        printf("%lu bytes sent. closing connection %d\n", bytes_sent, client_fd);
-        close(client_fd);
-        return bytes_sent;
-    }
+    
+    // // strip path traversal attempts
+    // if (strstr(url, "../")) {
+    //     char err_str[50] = "HTTP/1.1 404 Not Found\r\n\r\n";
+    //     bytes_sent = send(client_fd, err_str, strlen(err_str), 0);
+    //     printf("**directory traversal attempt** - ");
+    //     printf("%lu bytes sent. closing connection %d\n", bytes_sent, client_fd);
+    //     close(client_fd);
+    //     return bytes_sent;
+    // }
 
     char full_url[PATHLIM] = {0};
     strncpy(full_url, handler->directory, PATHLIM-1);
