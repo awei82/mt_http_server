@@ -44,9 +44,8 @@ ssize_t gf_handler_do_GET(char* url, int client_fd) {
     if (dir) {     
         char dir_buf[BUFSIZE] = {0};
         while ((dir_ent = readdir(dir)) != NULL) {
-            strncat(dir_buf,  dir_ent->d_name, strlen(dir_ent->d_name));
-            if (strlen(dir_buf) + strlen(dir_ent->d_name) < BUFSIZE)
-                strncat(dir_buf, "\n", strlen("\n"));
+            strncat(dir_buf,  dir_ent->d_name, BUFSIZE - strlen(dir_buf) - 1);
+            strncat(dir_buf, "\n", BUFSIZE - strlen(dir_buf) - 1);
         }
         char header_buf[100];
         snprintf(header_buf, 100, "HTTP/1.1 200 OK\r\nContent-Length: %zu\r\n\r\n", strlen(dir_buf));
