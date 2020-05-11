@@ -9,17 +9,6 @@
 
 #include "gf_handler.h"
 
-// typedef struct http_handler_t {
-//     char directory[PATHLIM];
-//     ssize_t (*handle)(http_handler_t *, char *, int);
-//     ssize_t (*do_HEAD)(char* url, int client_fd);
-//     ssize_t (*do_GET)(char* url, int client_fd);
-//     int (*is_file)(const char *path);
-//     FILE* (*_get_file_obj)(char* url);
-//     int (*_send_head)(FILE*, int);
-//     int (*_send_file)(FILE*, int);
-// } http_handler_t;
-
 http_handler_t* gf_handler_create() {
     http_handler_t* handler = (http_handler_t *)malloc(sizeof(http_handler_t));
     handler->handle = gf_handler_handle;

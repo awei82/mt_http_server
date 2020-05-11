@@ -42,9 +42,9 @@ static struct option gLongOptions[] = {
 #define PATHLIM 1024
 
 static void _sig_handler(int signo){
-  if (signo == SIGINT || signo == SIGTERM){
-    exit(signo);
-  }
+    if (signo == SIGINT || signo == SIGTERM){
+        exit(signo);
+    }
 }
 
 /* Main ========================================================= */
@@ -72,7 +72,7 @@ int main(int argc, char **argv) {
     }
 
     // Parse and set command line arguments
-    while ((option_char = getopt_long(argc, argv, "p:b:d:hx", gLongOptions, NULL)) != -1) {
+    while ((option_char = getopt_long(argc, argv, "p:b:d:t:h", gLongOptions, NULL)) != -1) {
         switch (option_char) {
             case 'p': // listen-port
                 portnum = atoi(optarg);
@@ -140,7 +140,9 @@ int main(int argc, char **argv) {
     http_server_set_maxpending(getfile_server, 6);
     http_server_set_handler(getfile_server, gf_handler);
 
+    /* set up threads */
     // www.cs.cornell.edu/courses/cs2022/2011sp/lectures/lect11.pdf
+    printf("# starting %d worker threads\n", nthreads);
     pthread_t threads[nthreads];
     worker_args_t *worker_args[nthreads];
     long t;
@@ -150,7 +152,7 @@ int main(int argc, char **argv) {
         
         worker_args[t] = (worker_args_t *) malloc(sizeof(worker_args_t)*nthreads);
         worker_args[t]->thread_id = t;
-        worker_args[t]->handler = gf_handler;
+        worker_args[t]->handler = getfile_server->handler;
 
         rc = pthread_create(&threads[t], NULL, http_server_worker, (void *) worker_args[t]);
         if (rc) {

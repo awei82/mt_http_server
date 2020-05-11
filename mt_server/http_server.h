@@ -15,6 +15,13 @@
 
 typedef struct http_server_t http_server_t;
 
+typedef struct http_server_t {
+    struct sockaddr_in serv_addr;
+    int maxpending;
+    http_handler_t *handler;
+    void* handlerarg;
+} http_server_t;
+
 /* 
  * This function must be the first one called as part of 
  * setting up a server. It returns a http_server_t handle which should be

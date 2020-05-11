@@ -28,15 +28,6 @@ pthread_cond_t cv_in = PTHREAD_COND_INITIALIZER;
 pthread_cond_t cv_out = PTHREAD_COND_INITIALIZER;
 
 
-
-typedef struct http_server_t {
-    struct sockaddr_in serv_addr;
-    int maxpending;
-    http_handler_t *handler;
-    void* handlerarg;
-} http_server_t;
-
-
 http_server_t* http_server_create(){
     http_server_t *server = (http_server_t *)malloc(sizeof(http_server_t));
     memset(&(server->serv_addr), 0, sizeof(server->serv_addr));
@@ -167,8 +158,6 @@ void *http_server_worker(void *args) {
 		char *requestbuf;
 		client_fd = client_fd_queue[queueFront];
 		requestbuf = request_queue[queueFront];
-
-        //printf("%d %d %s %lu\n", queueBack, client_fd, requestbuf, strlen(requestbuf));
 
         // point queueFront to next queue position
 		if (queueFront == (QUEUESIZE-1)) {
