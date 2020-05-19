@@ -3,15 +3,15 @@ DEBUG	= -g
 CXXFLAGS	= -Wall $(DEBUG) -pthread
 
 OBJS = gf_handler.o http_server.o 
-DEPS = gf_handler.h http_server.h 
+DEPS = src/gf_handler.h src/http_server.h 
 
-%.o: %.c $(DEPS)
-	echo $(CXXFLAGS)
+%.o: src/%.c $(DEPS)
 	$(CXX) -c -o $@ $< $(CXXFLAGS)
 
 main: $(OBJS) 
-	$(CXX) -c -o getfile_server.o getfile_server.c $(CXXFLAGS)
+	$(CXX) -c -o getfile_server.o src/getfile_server.c $(CXXFLAGS)
 	$(CXX) -o getfile_server getfile_server.o $(OBJS) $(CXXFLAGS)
+	rm *.o
 
 clean:
 	rm getfile_server getfile_server.o $(OBJS) 
