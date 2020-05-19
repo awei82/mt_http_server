@@ -7,7 +7,7 @@ This project is expanded from Gatech's GIOS GETFILE server project.
 The design is roughly based off of Python's [http.server](https://docs.python.org/3/library/http.server.html) module.
 
 ## Why build an HTTP server in C?
-Partly due to self interest, and partly due to an obsession in low level programming.  
+Partly due to self interest, and partly due to an obsession with low level programming.  
 Since the basic framework for an HTTP server was already built out for my OS course, I thought I'd flesh it out into a fully functional GET HTTP server.  
 This project was a good opportunity for me to brush up on my socket and multithreading programming, as well as dig into the HTTP specs.
 
