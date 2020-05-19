@@ -18,3 +18,7 @@ Run `./getfile_server -h` to view help instructions.
 ### Example:  
 In one terminal, run `./getfile_server`  
 From a web browser, navigate to `http://localhost:6200/README.md`
+
+## Running with Docker
+Build the image: `docker build -t getfile_server:latest .`  
+Run the server: `docker run -p 6200:6200 getfile_server -p 6200`
