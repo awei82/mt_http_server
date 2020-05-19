@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HTTP GET server test site</title>
+    <link rel="stylesheet" type="text/css" href="index.css">
+</head>
+<body>
+
+<h1>Test site for my <a href="https://github.com/awei82/mt_http_server" target="_blank">multi-threaded HTTP GET server</a>.</h1>
+
+<img id="cat" alt="what a cute cat" style="display:none;" width="800" class="center"></img>
+<br/><br/>
+<button onclick="showCat()">Click Me!</button>
+
+<script>
+    function showCat() {
+        var rand = Math.floor(Math.random() * 10); 
+        var catSrc = "images/cat" + rand + ".jpg";
+        var img = document.getElementById("cat");
+        img.src = catSrc;
+        img.style.display = "block";
+    }
+</script>
+
+</body>
+</html>
