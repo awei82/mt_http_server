@@ -7,4 +7,6 @@
 
 3. add default page option
 
+4. improve socket/connection handling
+- look into [HTTP Keep-Alive](https://en.wikipedia.org/wiki/HTTP_persistent_connection)
 
