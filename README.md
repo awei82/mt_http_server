@@ -23,4 +23,4 @@ From a web browser, navigate to `http://localhost:6200/README.md`
 
 ## Running with Docker
 Build the image: `docker build -t getfile_server:latest .`  
-Run the server: `docker run -v $(pwd):/app/html -p 6200:6200 getfile_server -d html -p 6200`
+Run the server: `docker run -tv $(pwd):/app/html -p 6200:6200 getfile_server -d html -p 6200`
