@@ -86,7 +86,7 @@ void http_server_serve(http_server_t *server){
         perror("ERROR on binding");
     log_info("# Listener socket %d bound to %s:%d.\n", listenerfd, inet_ntoa(server->serv_addr.sin_addr) , ntohs(server->serv_addr.sin_port));
 
-    log_info("Server is active. Listening for connections...\n", clientIP, newsockfd);
+    log_info("Server is active. Listening for connections...\n");
     if (listen(listenerfd, server->maxpending) == -1) {
         perror("listen");
         exit(3);
