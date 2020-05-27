@@ -14,9 +14,17 @@
 #include "http_server.h"
 #include "gf_handler.h"
 
+#include "logger/logger.h"
+#include "logger/logger.c"
+
 // FIFO queue implementation
-int client_fd_queue[QUEUESIZE]; // QUEUESIZE defined in "gfsesrver-student.h"
-char request_queue[QUEUESIZE][PATHLIM];
+struct client_ctx {
+    int fd;
+    char request[PATHLIM];
+    char* clientIP;
+} client_ctx;
+struct client_ctx client_queue[QUEUESIZE];
+
 int queueBack = 0; // queueBack tracks where handler will insert to queue
 int queueFront = 0; // queueFront tracks where workers will remove from queue
 int queueCount = 0; // queueCount tracks current # of items in queue
@@ -63,7 +71,7 @@ void http_server_serve(http_server_t *server){
     memset(buf, 0, BUFSIZE);
 
     // set up listening port
-    int listenerfd, newsockfd;
+    int listenerfd;
     socklen_t clilen;
 
     listenerfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -72,7 +80,8 @@ void http_server_serve(http_server_t *server){
 
     int yes = 1;
     setsockopt(listenerfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
-    
+
+    // bind
     if (bind(listenerfd, (struct sockaddr *) &server->serv_addr, sizeof(server->serv_addr)) < 0)
         perror("ERROR on binding");
     printf("# Listener socket %d bound to %s:%d.\n", listenerfd, inet_ntoa(server->serv_addr.sin_addr) , ntohs(server->serv_addr.sin_port));
@@ -85,23 +94,23 @@ void http_server_serve(http_server_t *server){
 
     struct sockaddr_in cli_addr;
     clilen = sizeof cli_addr; 
+    char *clientIP;
 
-    // serve
+    // Serve
     while(1) {
         // ACCEPT
-        newsockfd = accept(listenerfd, (struct sockaddr *) &cli_addr, &clilen);
+        int newsockfd = accept(listenerfd, (struct sockaddr *) &cli_addr, &clilen);
         if (newsockfd < 0) {
             perror("ERROR on accept");
             continue;
         }
-        char *clientIP;
         clientIP = inet_ntoa(cli_addr.sin_addr);
-        printf("- Accepted a connection from %s on socket %d\n", clientIP, newsockfd);
+        log_info("accepted a connection from %s on socket %d\n", clientIP, newsockfd);
 
         // Receive the request
         memset(buf, 0, BUFSIZE);
         int nbytes;
-        nbytes = recv(newsockfd, buf, BUFSIZE, 0);
+        nbytes = recv(newsockfd, buf, BUFSIZE, 0);          // where everything hangs
         if (nbytes == 0) {
             printf("socket %d hung up\n", newsockfd);
             close(newsockfd);
@@ -111,7 +120,7 @@ void http_server_serve(http_server_t *server){
             close(newsockfd);
             continue;
         }
-        printf("received request: %s\n", strtok(buf, "\n"));
+        log_info("received request: %s\n", strtok(buf, "\n"));
 
         /* handle the request - multithreaded */
         // get lock, wait for queue to be available
@@ -122,8 +131,9 @@ void http_server_serve(http_server_t *server){
         }
         queueCount++;
 
-        client_fd_queue[queueBack] = newsockfd;
-	    strncpy(request_queue[queueBack], buf, PATHLIM);
+        client_queue[queueBack].fd = newsockfd;
+        strncpy(client_queue[queueBack].request, buf, PATHLIM);
+        client_queue[queueBack].clientIP = clientIP;
 
         // increment queueBack pointer
         if (queueBack == (QUEUESIZE - 1)) {
@@ -134,7 +144,6 @@ void http_server_serve(http_server_t *server){
         // release lock
         pthread_mutex_unlock(&queue_mutex);
         pthread_cond_signal(&cv_out);
-
 
         //server->handler->handle(server->handler, buf, newsockfd);
     }
@@ -156,8 +165,9 @@ void *http_server_worker(void *args) {
 
         int client_fd;
 		char *requestbuf;
-		client_fd = client_fd_queue[queueFront];
-		requestbuf = request_queue[queueFront];
+        client_fd = client_queue[queueFront].fd;
+        requestbuf = client_queue[queueFront].request;
+        char *clientIP = client_queue[queueFront].clientIP;
 
         // point queueFront to next queue position
 		if (queueFront == (QUEUESIZE-1)) {
@@ -171,5 +181,8 @@ void *http_server_worker(void *args) {
         // do work
         handler->handle(handler, requestbuf, client_fd);
 
+        // close socket
+        log_info("Closing connection to %s on socket %d", clientIP, client_fd);
+        close(client_fd);
     }
 }

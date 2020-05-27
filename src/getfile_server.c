@@ -59,7 +59,7 @@ int main(int argc, char **argv) {
 
     int nthreads = 4;
 
-    setbuf(stdout, NULL); // disable caching
+    //setbuf(stdout, NULL); // disable caching
 
     if (signal(SIGINT, _sig_handler) == SIG_ERR){
         fprintf(stderr,"Can't catch SIGINT...exiting.\n");
@@ -76,7 +76,7 @@ int main(int argc, char **argv) {
         switch (option_char) {
             case 'p': // listen-port
                 portnum = atoi(optarg);
-                if ((portnum < 1025) || (portnum > 65535)) {
+                if ((portnum < 1) || (portnum > 65535)) {
                 fprintf(stderr, "%s @ %d: invalid port number (%d)\n", __FILE__, __LINE__, portnum);
                 exit(1);
                 } 

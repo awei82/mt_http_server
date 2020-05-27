@@ -1,9 +1,9 @@
 CXX		= gcc
 DEBUG	= -g
-CXXFLAGS	= -Wall $(DEBUG) -pthread
+CXXFLAGS	= -Wall $(DEBUG) -pthread -D LOG_USE_COLOR
 
-OBJS = gf_handler.o http_server.o 
-DEPS = src/gf_handler.h src/http_server.h 
+OBJS = gf_handler.o http_server.o
+DEPS = src/gf_handler.h src/http_server.h
 
 %.o: src/%.c $(DEPS)
 	$(CXX) -c -o $@ $< $(CXXFLAGS)
